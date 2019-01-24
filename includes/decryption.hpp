@@ -1,4 +1,4 @@
-
+// Copyright 2019 AndreevSemen
 #ifndef DECRYPTION_HPP
 #define DECRYPTION_HPP
 

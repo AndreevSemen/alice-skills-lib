@@ -1,4 +1,4 @@
-
+// Copyright 2019 AndreevSemen
 #ifndef MODULES_HPP
 #define MODULES_HPP
 
