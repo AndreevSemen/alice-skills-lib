@@ -35,6 +35,9 @@ add_executable(alice_tests
   source/ButtonPicture.cpp
   tests/request_unittests.cpp
   tests/response_unittests.cpp
+  source/encryption.cpp
+  source/decryption.cpp
+  source/modules.cpp
 )
 
 target_include_directories(alice_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/includes)
