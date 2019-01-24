@@ -55,7 +55,7 @@ int main()
 {
     Skill s;
     s.setCallback(CryptoCallback);
-    s.sun();
+    s.run();
     return 0;
 }
 
