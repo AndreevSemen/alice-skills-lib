@@ -54,7 +54,7 @@ void CryptoCallback(const Alice::Request& request,
 int main()
 {
     Skill s;
-    s.SetCallback(buy_elephant_callback);
+    s.SetCallback(CryptoCallback);
     s.Run();
     return 0;
 }
