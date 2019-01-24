@@ -1,15 +1,9 @@
-// Copyright 2018 RomAsya
-
-#ifndef INCLUDES_SKILL_HPP_
-#define INCLUDES_SKILL_HPP_
-
 #include <cstdlib>
 #include <functional>
 #include <iostream>
 #include <memory>
 #include <string>
 #include <thread>
-#include <exception>
 
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/beast/core.hpp>
@@ -26,12 +20,9 @@ struct send_lambda {
   Stream& stream_;
   bool& close_;
   boost::system::error_code& ec_;
-
-  explicit send_lambda(Stream& stream,
-                       bool& close,
+  explicit send_lambda(Stream& stream, bool& close,
                        boost::system::error_code& ec)
       : stream_(stream), close_(close), ec_(ec) {}
-
   template <bool isRequest, class Body, class Fields>
   void operator()(http::message<isRequest, Body, Fields>&& msg) const {
     close_ = msg.need_eof();
@@ -40,59 +31,54 @@ struct send_lambda {
   }
 };
 
-class Skill {
- public:
+struct Skill {
   Skill() {}
-
-  using Callback = std::function<void(const Alice::Request& request,
-                                      Alice::Response& response)>;
-
   template <class Body, class Allocator, class Send>
-  void HandleRequest(http::request<Body, http::basic_fields<Allocator>>&& req,
-                     Send&& send) {
-    try {
-    Alice::Request alice_request(req.body());
-    Alice::Response alice_response(alice_request);
-    callback_(alice_request, alice_response);
+  void handle_request(http::request<Body, http::basic_fields<Allocator>>&& req,
+                      Send&& send) {
+    std::string request{req.body()};
+    std::string response;
+    callback_(request, response);
     http::response<http::string_body> res{http::status::ok, req.version()};
-    res.body() = alice_response.ToString();
+    res.body() = response;
     res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
     res.set(http::field::content_type, "application/json");
     res.keep_alive(req.keep_alive());
     res.prepare_payload();
     return send(std::move(res));
-	} 
-	catch (nlohmann::json::parse_error& e) {
-    http::response<http::string_body> res{http::status::ok, req.version()};
-    res.set(http::field::server, BOOST_BEAST_VERSION_STRING);
-    res.set(http::field::content_type, "application/json"); 
-    res.keep_alive(req.keep_alive());
-    const char* data = "Hello, dear friend!!!";
-    res.body() = data;
-    res.prepare_payload();
-    return send(std::move(res));
-	}
   }
 
-  void SetCallback(Callback callback) { callback_ = std::move(callback); }
+  void setCallback(
+      std::function<void(const Alice::Request& request, Alice::Response& response)>
+          callback) {
+    callback_ = std::move(callback);
+  }
 
-  void Run() {
+  void run() {
     auto const address = boost::asio::ip::make_address("0.0.0.0");
-    auto const port_arg = GetOSEnv("PORT", "5000");
+    auto const port_arg = getOSEnv("PORT", "5000");
     auto const port = static_cast<unsigned short>(std::atoi(port_arg.c_str()));
+    std::shared_ptr<std::string const> const doc_root_{
+        std::make_shared<std::string>(".")};
     boost::asio::io_context ioc_{1};
     tcp::acceptor acceptor_{ioc_, {address, port}};
     for (;;) {
+      // This will receive the new connection
       tcp::socket socket_{ioc_};
+      // Block until we get a connection
       acceptor_.accept(socket_);
-      std::thread{&Skill::DoSession, this, std::move(socket_)}.detach();
+      // Launch the session, transferring ownership of the socket
+      std::thread{// std::bind(
+                  &Skill::do_session, this, std::move(socket_), doc_root_}
+          .detach();
     }
   }
 
  private:
-  Callback callback_;
-
-  void DoSession(tcp::socket&& socket) {
+  std::function<void(const std::string& request, std::string& response)>
+      callback_;
+  void do_session(tcp::socket&& socket,
+                  std::shared_ptr<std::string const> const& doc_root) {
     bool close = false;
     boost::system::error_code ec;
     boost::beast::flat_buffer buffer;
@@ -100,13 +86,10 @@ class Skill {
     for (;;) {
       http::request<http::string_body> req;
       http::read(socket, buffer, req, ec);
-      if (ec == http::error::end_of_stream)
-        break;
-      if (ec)
-        return fail(ec, "read");
-      HandleRequest(std::move(req), lambda);
-      if (ec)
-        return fail(ec, "write");
+      if (ec == http::error::end_of_stream) break;
+      if (ec) return fail(ec, "read");
+      handle_request(std::move(req), lambda);
+      if (ec) return fail(ec, "write");
       if (close) {
         break;
       }
@@ -118,11 +101,13 @@ class Skill {
     std::cerr << what << ": " << ec.message() << "\n";
   }
 
-  std::string GetOSEnv(boost::string_view name,
+  std::string getOSEnv(boost::string_view name,
                        boost::string_view default_value) {
     const char* e = std::getenv(name.data());
     return e ? e : default_value.data();
   }
+  // boost::asio::io_context ioc_{ 1 };
+  // tcp::acceptor acceptor_;
+  // boost::asio::signal_set signals_;
+  // std::shared_ptr<std::string const> const doc_root_;
 };
-
-#endif // INCLUDES_SKILL_HPP_
