@@ -23,11 +23,11 @@ void CryptoCallback(const Alice::Request& request,
                     "(он должен занимать ровно 8 первых символов текста), а затем текст.\n"
                     "Чтобы расшифровать ранее зашифрованный текст, введите ключ, "
                     "аналогично, как для шифрования, и выданый при шифровании текст.";
-            Alice::Button endingSessionButton("Пока!", {"end"}, false);
+            Alice::Button endingSessionButton("Пока!", {"end"}, "", false);
         } else {
             title = "Выберете действие с помощью соответсвующей кнопки";
-            Alice::Button encryptionButton("Шифруй", {"encry " + request.Command()}, true);
-            Alice::Button decryptionButton("Расшифровывай", {"decry " + request.Command()}, true);
+            Alice::Button encryptionButton("Шифруй", {"encry " + request.Command()}, "", true);
+            Alice::Button decryptionButton("Расшифровывай", {"decry " + request.Command()}, "", true);
             response.PushButton(encryptionButton);
             response.PushButton(decryptionButton);
         }
@@ -54,8 +54,8 @@ void CryptoCallback(const Alice::Request& request,
 int main()
 {
     Skill s;
-    s.SetCallback(CryptoCallback);
-    s.Run();
+    s.setCallback(CryptoCallback);
+    s.sun();
     return 0;
 }
 
